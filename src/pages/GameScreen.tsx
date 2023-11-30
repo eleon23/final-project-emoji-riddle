@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Guess from "../components/Guess";
 import Player from "../components/Player";
 import Phrase from "../components/Phrase";
@@ -62,24 +62,27 @@ const GameScreen = () => {
   const [guesses, setGuesses] = useState<GuessProps[]>([]);
   const [showPhrase, setShowPhrase] = useState(false);
 
-  const gameRef = doc(db, "games", gameDetails.name);
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
-  const fetchGameData = async () => {
-    const gameData = (await getDoc(gameRef)).data();
+  const gameRef = useMemo(
+    () => doc(db, "games", gameDetails.name),
+    [gameDetails.name]
+  );
+  const roundRef = useMemo(
+    () => doc(db, `games/${gameDetails.name}/rounds`, `Round ${round}`),
+    [gameDetails.name, round]
+  );
+
+  const fetchLoggedInUserData = async () => {
+    // const gameData = (await getDoc(gameRef)).data();
 
     const userRef = doc(db, "users", auth.currentUser!.uid);
     const userData = (await getDoc(userRef)).data();
 
-    setRound(gameData?.currentRound);
-    setPlayers(gameData?.players);
+    // setRound(gameData?.currentRound);
+    // setPlayers(gameData?.players);
     setCurrentUserName(userData?.name);
   };
-
-  const roundRef = doc(
-    db,
-    `games/${gameDetails.name}/rounds`,
-    `Round ${round}`
-  );
 
   const fetchCurrentTurnUserData = async () => {
     const userRef = doc(db, "users", currentTurn!);
@@ -88,9 +91,17 @@ const GameScreen = () => {
   };
 
   useEffect(() => {
-    fetchGameData();
+    fetchLoggedInUserData();
+    const gameUnsubscribe = onSnapshot(gameRef, (doc) => {
+      const gameData = doc.data();
 
-    const unsubscribe = onSnapshot(roundRef, (doc) => {
+      setRound(gameData?.currentRound);
+      setPlayers(gameData?.players);
+    });
+
+    // const roundRef =
+
+    const roundUnsubscribe = onSnapshot(roundRef, (doc) => {
       const roundData = doc.data();
 
       console.log(roundData);
@@ -112,9 +123,17 @@ const GameScreen = () => {
     setIsTurn(currentTurn == auth.currentUser?.uid);
     setShowPhrase(currentTurn == auth.currentUser?.uid);
 
-    return () => unsubscribe();
+    messagesEndRef.current!.scrollIntoView({
+      behavior: "smooth",
+    });
+
+    return () => {
+      gameUnsubscribe();
+      roundUnsubscribe();
+    };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTurn, gameDetails.name, isTurn, round, roundCompleted]);
+  }, [currentTurn, gameDetails.name, isTurn, roundCompleted, guesses]);
 
   const handleGuessClick = async () => {
     if (currentGuess.toLowerCase() !== phrase.toLowerCase()) {
@@ -133,6 +152,15 @@ const GameScreen = () => {
           guess: `${currentUserName} guessed`,
           correct: true,
         }),
+      });
+
+      const playersWithUpdatedScores = players.map((player) => {
+        if (player.player === auth.currentUser?.uid) player.score += 1;
+        return player;
+      });
+
+      await updateDoc(gameRef, {
+        players: playersWithUpdatedScores,
       });
       setShowPhrase(true);
     }
@@ -208,6 +236,7 @@ const GameScreen = () => {
                 uid={player.player}
                 isTurn={player.player == currentTurn}
                 isHost={i == 0}
+                score={player.score}
               />
             ))}
             {isTurn && roundStarted && round != players.length && (
@@ -223,7 +252,7 @@ const GameScreen = () => {
                 </div>
               </div>
             )}
-            {isTurn && roundStarted && round == players.length && (
+            {roundStarted && round == players.length && (
               <div className="row mt-5">
                 <div className="col-6 offset-3 col-xl-4 offset-xl-4">
                   <button
@@ -360,7 +389,10 @@ const GameScreen = () => {
               </div>
               <div className="col-lg-4 pt-2" id="chat-panel">
                 <h4 className="text-center">Guesses</h4>
-                <div className="chats row mt-3">
+                <div
+                  className="chats row mt-3"
+                  style={{ height: "70vh", overflowY: "scroll" }}
+                >
                   {guesses.map((guess) => (
                     <Guess
                       name={guess.name}
@@ -369,6 +401,7 @@ const GameScreen = () => {
                     />
                   ))}
                 </div>
+                <div ref={messagesEndRef}>&nbsp;</div>
               </div>
             </div>
           </div>
