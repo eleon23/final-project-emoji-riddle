@@ -3,7 +3,7 @@ import { PlayerProps } from "../utils/types";
 import { db } from "../firebase/client";
 import { useEffect, useState } from "react";
 
-const Player = ({ uid, isTurn, isHost }: PlayerProps) => {
+const Player = ({ uid, isTurn, isHost, score }: PlayerProps) => {
   const [playerName, setPlayerName] = useState("");
   const [profilePhoto, setProfilePhoto] = useState("");
 
@@ -19,29 +19,35 @@ const Player = ({ uid, isTurn, isHost }: PlayerProps) => {
   });
 
   return (
-    <div className="row game-player py-3" style={{ fontSize: "1.25rem" }}>
-      <div className="col-2">
-        <img
-          src={profilePhoto}
-          className="img-fluid ms-2"
-          style={{ borderRadius: "50%" }}
-        ></img>
-        {/* <i className="bi-person-circle"></i> */}
-      </div>
-      <div className="col-10 py-1">
-        {playerName}
-        {isHost && (
-          <span className="ms-1" style={{ color: "#777" }}>
-            (Host)
+    <>
+      <div className="row game-player py-3" style={{ fontSize: "1.25rem" }}>
+        <div className="col-2">
+          <img
+            src={profilePhoto}
+            className="img-fluid ms-2"
+            style={{ borderRadius: "50%" }}
+          ></img>
+          {/* <i className="bi-person-circle"></i> */}
+        </div>
+        <div className="col-10 py-1">
+          {playerName}
+          {isHost && (
+            <span className="ms-1" style={{ color: "#777" }}>
+              (Host)
+            </span>
+          )}
+          {isTurn && (
+            <span className="ms-1" style={{ color: "#777" }}>
+              (Turn)
+            </span>
+          )}
+          <br />
+          <span style={{ fontSize: "1rem", color: "#777" }}>
+            Score: {score}
           </span>
-        )}
-        {isTurn && (
-          <span className="ms-1" style={{ color: "#777" }}>
-            (Turn)
-          </span>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
